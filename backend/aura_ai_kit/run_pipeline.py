@@ -110,7 +110,7 @@ def episode_bad_days(episodes: pd.DataFrame, n_days: int,
     return bad
 
 
-def main():
+def main(*, generate_reports: bool = True):
     t_start = time.time()
     base = Path(__file__).resolve().parent
     cfg = load_yaml(base / "config" / "pipeline.yaml")
@@ -372,72 +372,75 @@ def main():
     }
 
     # ---------------- 7. report + charts ----------------
-    print("[7/7] charts and report ...", flush=True)
-    from aura import report as rp
+    if generate_reports:
+        print("[7/7] charts and report ...", flush=True)
+        from aura import report as rp
 
-    # showcase: a deconditioning astronaut detected by both Tier 0 and 1a
-    decond_eps = test["episodes"][test["episodes"]["problem"] == "deconditioning"]
-    show_astro, show_ep = None, None
-    for _, ep in decond_eps.iterrows():
-        det = det_table[(det_table["astro_id"] == ep["astro_id"])]
-        if len(det) and det["tier0"].notna().any() and det["tier1a_if"].notna().any():
-            show_astro, show_ep = ep["astro_id"], ep
-            break
-    if show_astro is None and len(decond_eps):
-        show_ep = decond_eps.iloc[0]
-        show_astro = show_ep["astro_id"]
+        # showcase: a deconditioning astronaut detected by both Tier 0 and 1a
+        decond_eps = test["episodes"][test["episodes"]["problem"] == "deconditioning"]
+        show_astro, show_ep = None, None
+        for _, ep in decond_eps.iterrows():
+            det = det_table[(det_table["astro_id"] == ep["astro_id"])]
+            if len(det) and det["tier0"].notna().any() and det["tier1a_if"].notna().any():
+                show_astro, show_ep = ep["astro_id"], ep
+                break
+        if show_astro is None and len(decond_eps):
+            show_ep = decond_eps.iloc[0]
+            show_astro = show_ep["astro_id"]
 
-    if show_astro is not None:
-        eps_a = test["episodes"][test["episodes"]["astro_id"] == show_astro]
-        alerts_a = t0_test[(t0_test["scope"] == "body") & (t0_test["astro_id"] == show_astro)]
-        rp.fig_example_timeline(results_dir / "fig_example_timeline.png",
-                                df_by_astro[show_astro], tracks_body_test[show_astro],
-                                alerts_a, eps_a, show_astro)
+        if show_astro is not None:
+            eps_a = test["episodes"][test["episodes"]["astro_id"] == show_astro]
+            alerts_a = t0_test[(t0_test["scope"] == "body") & (t0_test["astro_id"] == show_astro)]
+            rp.fig_example_timeline(results_dir / "fig_example_timeline.png",
+                                    df_by_astro[show_astro], tracks_body_test[show_astro],
+                                    alerts_a, eps_a, show_astro)
 
-        sc = scores_test[show_astro]
-        pairs = [(sc["strangeness_if"], [n.day for n in notices_if[show_astro]])]
-        aids, flags = [show_astro], [True]
-        if clean_ids:
-            ca = clean_ids[0]
-            sca = scores_test[ca]
-            pairs.append((sca["strangeness_if"], [n.day for n in notices_if[ca]]))
-            aids.append(ca)
-            flags.append(False)
-        rp.fig_notices(results_dir / "fig_notices.png", pairs, det1a.high_thresh_if,
-                       aids, flags)
+            sc = scores_test[show_astro]
+            pairs = [(sc["strangeness_if"], [n.day for n in notices_if[show_astro]])]
+            aids, flags = [show_astro], [True]
+            if clean_ids:
+                ca = clean_ids[0]
+                sca = scores_test[ca]
+                pairs.append((sca["strangeness_if"], [n.day for n in notices_if[ca]]))
+                aids.append(ca)
+                flags.append(False)
+            rp.fig_notices(results_dir / "fig_notices.png", pairs, det1a.high_thresh_if,
+                           aids, flags)
 
-        snap = int(show_ep["onset_day"]) + 21
-        if snap + H < n_days and snap >= W:
-            g = df_by_astro[show_astro]
-            tracks_show = tracks_body_test[show_astro]
-            hist = np.column_stack([tracks_show[s].ewma
-                                    for s in FORECAST_SIGNALS])[snap - W:snap]
-            realized = g[list(FORECAST_SIGNALS)].to_numpy()[snap:snap + H]
-            realized_mask = np.column_stack([tracks_show[s].ok
-                                             for s in FORECAST_SIGNALS])[snap:snap + H]
-            hist_vals = np.column_stack([tracks_show[s].ewma
-                                         for s in FORECAST_SIGNALS])[snap - W:snap]
-            mu, band = learned_fb.forecast(hist)
-            rp.fig_forecast(results_dir / "fig_forecast.png",
-                            np.arange(snap - W, snap), hist_vals, mu, band, realized,
-                            realized_mask, 1, "hrv_rmssd", "ms", snap, H)
+            snap = int(show_ep["onset_day"]) + 21
+            if snap + H < n_days and snap >= W:
+                g = df_by_astro[show_astro]
+                tracks_show = tracks_body_test[show_astro]
+                hist = np.column_stack([tracks_show[s].ewma
+                                        for s in FORECAST_SIGNALS])[snap - W:snap]
+                realized = g[list(FORECAST_SIGNALS)].to_numpy()[snap:snap + H]
+                realized_mask = np.column_stack([tracks_show[s].ok
+                                                 for s in FORECAST_SIGNALS])[snap:snap + H]
+                hist_vals = np.column_stack([tracks_show[s].ewma
+                                             for s in FORECAST_SIGNALS])[snap - W:snap]
+                mu, band = learned_fb.forecast(hist)
+                rp.fig_forecast(results_dir / "fig_forecast.png",
+                                np.arange(snap - W, snap), hist_vals, mu, band, realized,
+                                realized_mask, 1, "hrv_rmssd", "ms", snap, H)
 
-    co2_eps = test["episodes"][test["episodes"]["problem"] == "co2_scrubber_fault"]
-    if len(co2_eps):
-        ep = co2_eps.iloc[0]
-        sid = ep["station_id"]
-        tr = tracks_st_test[sid]["co2_ppm"]
-        rp.fig_cabin(results_dir / "fig_cabin.png", sid, tr.raw, tr.z,
-                     t0_test[(t0_test["scope"] == "station") & (t0_test["station_id"] == sid)
-                             & (t0_test["signal"] == "co2_ppm")],
-                     context_labels.get(sid, []), ep, det1b.high_thresh)
+        co2_eps = test["episodes"][test["episodes"]["problem"] == "co2_scrubber_fault"]
+        if len(co2_eps):
+            ep = co2_eps.iloc[0]
+            sid = ep["station_id"]
+            tr = tracks_st_test[sid]["co2_ppm"]
+            rp.fig_cabin(results_dir / "fig_cabin.png", sid, tr.raw, tr.z,
+                         t0_test[(t0_test["scope"] == "station") & (t0_test["station_id"] == sid)
+                                 & (t0_test["signal"] == "co2_ppm")],
+                         context_labels.get(sid, []), ep, det1b.high_thresh)
 
-    rp.fig_summary(results_dir / "fig_summary.png", det_summaries,
-                   {"normal": fa, "stress": fa_s},
-                   ["tier0", "tier1a_if", "tier1a_ae"],
-                   sorted(det_table["problem"].unique().tolist()))
+        rp.fig_summary(results_dir / "fig_summary.png", det_summaries,
+                       {"normal": fa, "stress": fa_s},
+                       ["tier0", "tier1a_if", "tier1a_ae"],
+                       sorted(det_table["problem"].unique().tolist()))
 
-    rp.write_report(results_dir / "report.md", metrics, __version__)
+        rp.write_report(results_dir / "report.md", metrics, __version__)
+    else:
+        print("[7/7] report and chart generation skipped.", flush=True)
 
     serializable = {k: v for k, v in metrics.items() if not isinstance(v, pd.DataFrame)}
     with open(results_dir / "metrics.json", "w", encoding="utf-8") as f:

@@ -6,7 +6,7 @@ a 0-100 readiness, a strangeness score, top drivers, an "is it me or the cabin?"
 probability, a personal-baseline comparison, a consecutive-run notice gate and
 a next-run reaction-time trend.
 
-Run: `pip install -r aura_ai_kit/requirements.txt && python server.py`
+Local development: `pip install -r aura_ai_kit/requirements.txt && python server.py`
 (trains the model in about 1 s and generates snapshots only if the existing
 snapshot file is missing or invalid).
 
@@ -34,7 +34,7 @@ virtualenv and select it in the Web tab:
 ```sh
 mkvirtualenv --python=/usr/local/bin/python3.12 aura-backend
 workon aura-backend
-python -m pip install -r /home/<username>/backend-ai/backend/aura_ai_kit/requirements.txt
+python -m pip install --no-cache-dir -r /home/<username>/backend-ai/backend/aura_ai_kit/requirements-production.txt
 ```
 
 Before reloading the Web app, generate the deployment snapshot from that same
@@ -45,6 +45,13 @@ cd /home/<username>/backend-ai/backend
 workon aura-backend
 python server.py --generate-snapshots
 ```
+
+This production dependency set includes NumPy, pandas, scikit-learn, SciPy, and
+PyYAML, but omits pytest and matplotlib. The deployment generation command
+keeps metrics and snapshot output but skips only the optional report and chart
+files; `python server.py` and `python run_pipeline.py` still generate them by
+default when using the full `aura_ai_kit/requirements.txt` (run the pipeline
+directly from `aura_ai_kit`).
 
 The command runs the configured simulator pipeline once, validates the result,
 and exits nonzero with an error if generation or validation fails. It writes

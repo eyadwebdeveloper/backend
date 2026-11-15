@@ -1,0 +1,8 @@
+# PythonAnywhere API and deployment snapshot generation (Python 3.12).
+# Targets the reported NumPy 2.5.4 / SciPy 1.18.1 PythonAnywhere environment.
+# Scikit-learn installs its own runtime dependencies.
+numpy>=2.5,<2.6
+pandas==3.0.6
+scikit-learn==1.9.1
+scipy==1.18.1
+PyYAML==6.0.3

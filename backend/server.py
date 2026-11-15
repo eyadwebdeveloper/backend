@@ -122,12 +122,12 @@ def _load_snapshot_file() -> dict:
     return _validate_snapshots(snapshots)
 
 
-def build_snapshots() -> dict:
+def build_snapshots(*, generate_reports: bool = True) -> dict:
     """Run the simulator pipeline once and load its validated snapshot output."""
     print("Running AURA simulator and models; this can take 10-30 seconds...",
           flush=True)
     started = time.perf_counter()
-    generated = run_pipeline.main()
+    generated = run_pipeline.main(generate_reports=generate_reports)
     if generated is None:
         raise SnapshotFileError("Pipeline did not return generated snapshots")
     snapshots = _validate_snapshots(generated)
@@ -187,13 +187,13 @@ def initialize(*, generate_missing_snapshots: bool = False) -> None:
     _get_snapshots(generate_missing=generate_missing_snapshots)
 
 
-def generate_snapshots() -> dict:
+def generate_snapshots(*, generate_reports: bool = False) -> dict:
     """Run and validate the snapshot pipeline under the cross-process lock."""
     global _snapshots
     with _initialization_lock:
         try:
             with _snapshot_process_lock():
-                snapshots = build_snapshots()
+                snapshots = build_snapshots(generate_reports=generate_reports)
         except Exception as exc:
             raise InitializationError(
                 f"Snapshot generation failed at {SNAPSHOTS_PATH}: {exc}"

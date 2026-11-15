@@ -364,7 +364,7 @@ def test_wsgi_initialize_loads_existing_file_without_running_pipeline(
     monkeypatch.setattr(server, "SNAPSHOTS_PATH", snapshot_path)
     monkeypatch.setattr(server.game_ai, "get_model", lambda: object())
 
-    def unexpected_pipeline_call():
+    def unexpected_pipeline_call(**kwargs):
         raise AssertionError("WSGI initialization must not run the pipeline")
 
     monkeypatch.setattr(server.run_pipeline, "main", unexpected_pipeline_call)
@@ -376,7 +376,7 @@ def test_wsgi_initialize_loads_existing_file_without_running_pipeline(
 def test_wsgi_initialize_fails_when_snapshot_file_is_missing(monkeypatch):
     monkeypatch.setattr(server.game_ai, "get_model", lambda: object())
 
-    def unexpected_pipeline_call():
+    def unexpected_pipeline_call(**kwargs):
         raise AssertionError("WSGI initialization must not run the pipeline")
 
     monkeypatch.setattr(server.run_pipeline, "main", unexpected_pipeline_call)
@@ -410,7 +410,7 @@ def test_wsgi_initialize_fails_for_invalid_or_incomplete_snapshots(
     monkeypatch.setattr(server, "SNAPSHOTS_PATH", snapshot_path)
     monkeypatch.setattr(server.game_ai, "get_model", lambda: object())
 
-    def unexpected_pipeline_call():
+    def unexpected_pipeline_call(**kwargs):
         raise AssertionError("WSGI initialization must not run the pipeline")
 
     monkeypatch.setattr(server.run_pipeline, "main", unexpected_pipeline_call)
@@ -426,8 +426,8 @@ def test_local_initialization_generates_missing_snapshots(monkeypatch, tmp_path)
     monkeypatch.setattr(server, "SNAPSHOTS_PATH", snapshot_path)
     monkeypatch.setattr(server.game_ai, "get_model", lambda: object())
 
-    def generate():
-        calls.append(True)
+    def generate(*, generate_reports):
+        calls.append(generate_reports)
         snapshot_path.write_text(json.dumps(snapshots), encoding="utf-8")
         return snapshots
 
@@ -435,7 +435,7 @@ def test_local_initialization_generates_missing_snapshots(monkeypatch, tmp_path)
     server.initialize(generate_missing_snapshots=True)
 
     assert server._snapshots == snapshots
-    assert len(calls) == 1
+    assert calls == [True]
 
 
 def test_deployment_generation_command_runs_pipeline_once(
@@ -446,15 +446,15 @@ def test_deployment_generation_command_runs_pipeline_once(
     snapshot_path = tmp_path / "aura_snapshots.json"
     monkeypatch.setattr(server, "SNAPSHOTS_PATH", snapshot_path)
 
-    def generate():
-        calls.append(True)
+    def generate(*, generate_reports):
+        calls.append(generate_reports)
         snapshot_path.write_text(json.dumps(snapshots), encoding="utf-8")
         return snapshots
 
     monkeypatch.setattr(server.run_pipeline, "main", generate)
     server.main(["--generate-snapshots"])
 
-    assert len(calls) == 1
+    assert calls == [False]
     assert server._snapshots == snapshots
     assert "Generated and validated" in capsys.readouterr().out
 
@@ -465,7 +465,7 @@ def test_generation_command_does_not_accept_preexisting_file_without_new_output(
     snapshot_path = tmp_path / "aura_snapshots.json"
     snapshot_path.write_text(json.dumps(valid_snapshots()), encoding="utf-8")
     monkeypatch.setattr(server, "SNAPSHOTS_PATH", snapshot_path)
-    monkeypatch.setattr(server.run_pipeline, "main", lambda: None)
+    monkeypatch.setattr(server.run_pipeline, "main", lambda **kwargs: None)
 
     with pytest.raises(SystemExit) as error:
         server.main(["--generate-snapshots"])
@@ -475,7 +475,7 @@ def test_generation_command_does_not_accept_preexisting_file_without_new_output(
 
 
 def test_deployment_generation_command_fails_clearly(monkeypatch, capsys):
-    def fail():
+    def fail(**kwargs):
         raise RuntimeError("simulator failed")
 
     monkeypatch.setattr(server.run_pipeline, "main", fail)
