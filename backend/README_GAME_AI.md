@@ -1,5 +1,7 @@
 # Game-session AI (Tier 3)
 
+Source: https://github.com/eyadwebdeveloper/backend · Live API: https://eyad1ashraff.pythonanywhere.com (try `https://eyad1ashraff.pythonanywhere.com/api/health`)
+
 `aura_ai_kit/aura/game_ai.py` reads one finished Astro-Shield run and returns:
 state (nominal / fatigue / tension / low_vigor / cabin_co2) with probabilities,
 a 0-100 readiness, a strangeness score, top drivers, an "is it me or the cabin?"
@@ -83,9 +85,9 @@ deployment command use the per-process thread lock and cross-process lock at
 they cannot read a partially written snapshot.
 
 The main AURA site reads `VITE_AURA_API_BASE` (set it at build time to
-`https://<username>.pythonanywhere.com/api` when the site is hosted separately).
+`https://eyad1ashraff.pythonanywhere.com/api` when the site is hosted separately).
 The Astro-Shield game reads `NEXT_PUBLIC_AURA_API` (set it to
-`https://<username>.pythonanywhere.com`). Both still use the same backend routes;
+`https://eyad1ashraff.pythonanywhere.com`). Both still use the same backend routes;
 the existing wildcard CORS response is retained.
 
 The first worker startup runs the simulator/model pipeline and can take
